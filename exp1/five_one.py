@@ -17,25 +17,16 @@ def load_image(image_path):
         print(f"错误：未找到文件 {image_path}。请检查路径。")
         return None
       
-TERMINATOR = "$$$"
-TERMINATOR_BITS = [int(b) for b in "00100100" * len(TERMINATOR)]
-
-
 def message_to_bits(message):
-    """将字符串消息转换为一个比特列表 (List[int])"""
-    bits = []
-    # 首先，编码字符串：在消息末尾添加一个结束标记（例如：'$$$'）
-    # 这样提取时就知道何时停止。
-    message_with_terminator = message + TERMINATOR
-    
-    # 将每个字符转换为8位的ASCII码，然后分解为比特
-    for char in message_with_terminator:
-        # 使用bin()将字符转换为二进制字符串（如 '0b1000001'）
-        # [2:].zfill(8) 截断 '0b'，并补齐到8位
-        binary_char = bin(ord(char))[2:].zfill(8)
-        # 将8位二进制字符串转换为8个整数 (0或1)
-        bits.extend([int(b) for b in binary_char])
-    print(f"消息 '{message}' 转换为比特流，共 {len(bits)} 比特。")
+    """将字符串消息转换为一个比特列表 (List[int])，前 32 比特存储消息字节长度"""
+    message_bytes = message.encode("utf-8")
+    length = len(message_bytes)
+    header_bits = [int(b) for b in format(length, "032b")]
+    payload_bits = []
+    for byte in message_bytes:
+        payload_bits.extend(int(b) for b in format(byte, "08b"))
+    bits = header_bits + payload_bits
+    print(f"消息 '{message}' 转换为比特流，共 {len(bits)} 比特 (含 32 位长度头)。")
     return bits
   
 # 确保加载的图像是灰度图，因为 DCT 通常在灰度图或 YCbCr 的 Y 通道上进行
@@ -78,7 +69,7 @@ TARGET_HIGH = 0.52
 TARGET_LOW = 0.48
 
 
-def embed_binary_density(binary_img, message, block_size=DEFAULT_BLOCK_SIZE, max_change_ratio=0.01):
+def embed_binary_density(binary_img, message, block_size=DEFAULT_BLOCK_SIZE, max_change_ratio=0.05):
     """
     二值图像隐写嵌入功能：基于区域密度（黑像素比例）。
     
@@ -122,47 +113,34 @@ def embed_binary_density(binary_img, message, block_size=DEFAULT_BLOCK_SIZE, max
             max_changes = max(1, int(np.ceil(block_total_pixels * max_change_ratio)))
 
             bit_to_embed = secret_bits[bit_index]
-            success = False
 
+            # 在嵌入阶段，去掉 success/max_changes 判断，直接执行像素翻转
             if bit_to_embed == 1:
                 required_black = math.ceil(TARGET_HIGH * block_total_pixels)
                 current_black = int(np.sum(block == 0))
                 missing_black = max(0, required_black - current_black)
-
-                if missing_black == 0:
-                    success = True
-                elif missing_black <= max_changes:
-                    white_indices = np.column_stack(np.where(block == 255))
-                    if missing_black <= len(white_indices) and missing_black > 0:
-                        flip_indices = np.random.choice(len(white_indices), missing_black, replace=False)
-                        for idx in flip_indices:
-                            r, c = white_indices[idx]
-                            block[r, c] = 0
-                        success = True
-
-            else:
+                white_indices = np.column_stack(np.where(block == 255))
+                if missing_black > len(white_indices):
+                    missing_black = len(white_indices)
+                if missing_black > 0:
+                    flip_indices = np.random.choice(len(white_indices), missing_black, replace=False)
+                    for idx in flip_indices:
+                        r, c = white_indices[idx]
+                        block[r, c] = 0
+            elif bit_to_embed == 0:
                 allowed_black = math.floor(TARGET_LOW * block_total_pixels)
                 current_black = int(np.sum(block == 0))
                 excess_black = max(0, current_black - allowed_black)
-
-                if excess_black == 0:
-                    success = True
-                elif excess_black <= max_changes:
-                    black_indices = np.column_stack(np.where(block == 0))
-                    if excess_black <= len(black_indices) and excess_black > 0:
-                        flip_indices = np.random.choice(len(black_indices), excess_black, replace=False)
-                        for idx in flip_indices:
-                            r, c = black_indices[idx]
-                            block[r, c] = 255
-                        success = True
-
-            if success:
-                stego_binary_img[r_start:r_end, c_start:c_end] = block
-                bit_index += 1
-            else:
-                # 未能在规定修改量内嵌入，尝试下一个块
-                stego_binary_img[r_start:r_end, c_start:c_end] = block
-                continue
+                black_indices = np.column_stack(np.where(block == 0))
+                if excess_black > len(black_indices):
+                    excess_black = len(black_indices)
+                if excess_black > 0:
+                    flip_indices = np.random.choice(len(black_indices), excess_black, replace=False)
+                    for idx in flip_indices:
+                        r, c = black_indices[idx]
+                        block[r, c] = 255
+            stego_binary_img[r_start:r_end, c_start:c_end] = block
+            bit_index += 1
         
         if bit_index >= total_bits:
             break
@@ -176,31 +154,28 @@ def embed_binary_density(binary_img, message, block_size=DEFAULT_BLOCK_SIZE, max
     return stego_binary_img
   
 def bits_to_message(bits):
-    """将比特流转换为字符串消息，遇到终止符 '$$$' 则停止并去除终止符。
+    """根据前 32 位长度头还原消息，如果长度不足返回 ("", False)"""
+    if len(bits) < 32:
+        return "", False
 
-    返回:
-        tuple[str, bool]: (解码后的消息, 是否检测到终止符)
-    """
-    message_chars = []
-    i = 0
-    terminator_length = len(TERMINATOR_BITS)
+    length_bits = bits[:32]
+    byte_length = int("".join(map(str, length_bits)), 2)
+    payload_bits = bits[32:32 + byte_length * 8]
 
-    while i + 7 < len(bits):
-        if i + terminator_length <= len(bits) and bits[i:i + terminator_length] == TERMINATOR_BITS:
-            return "".join(message_chars), True
+    if len(payload_bits) < byte_length * 8:
+        return "", False
 
-        byte_bits = bits[i:i + 8]
-        binary_string = "".join(map(str, byte_bits))
-        char_code = int(binary_string, 2)
+    message_bytes = bytearray()
+    for i in range(0, len(payload_bits), 8):
+        byte_bits = payload_bits[i:i + 8]
+        message_bytes.append(int("".join(map(str, byte_bits)), 2))
 
-        try:
-            message_chars.append(chr(char_code))
-        except ValueError:
-            message_chars.append('?')
+    try:
+        message = message_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        message = message_bytes.decode("utf-8", errors="replace")
 
-        i += 8
-
-    return "".join(message_chars), False
+    return message, True
 
 
 # --- 主程序测试：二值化和嵌入 ---
@@ -226,8 +201,7 @@ if carrier_image_gray is not None:
 def extract_binary_density(
     stego_binary_img,
     block_size=DEFAULT_BLOCK_SIZE,
-    threshold_high=TARGET_HIGH,
-    threshold_low=TARGET_LOW,
+    threshold=0.5,
 ):
     H, W = stego_binary_img.shape
     block_rows = H // block_size
@@ -235,8 +209,7 @@ def extract_binary_density(
     extracted_bits = []
     block_total_pixels = block_size * block_size
 
-    terminator_found = False
-    terminator_length = len(TERMINATOR_BITS)
+    required_bits = None
 
     for i in range(block_rows):
         for j in range(block_cols):
@@ -245,27 +218,25 @@ def extract_binary_density(
             block = stego_binary_img[r_start:r_end, c_start:c_end]
             P_black = np.sum(block == 0) / block_total_pixels
 
-            # 与嵌入时一致
-            if P_black > threshold_high:
-                extracted_bits.append(1)
-            elif P_black < threshold_low:
-                extracted_bits.append(0)
-            else:
-                # 跳过密度在中间的块
-                continue
+            bit = 1 if P_black >= threshold else 0
+            extracted_bits.append(bit)
 
-            # 检查终止符
-            if len(extracted_bits) >= terminator_length and extracted_bits[-terminator_length:] == TERMINATOR_BITS:
-                terminator_found = True
+            # 读取长度头后确定需要的总比特数
+            if required_bits is None and len(extracted_bits) >= 32:
+                length_bits = extracted_bits[:32]
+                byte_length = int("".join(map(str, length_bits)), 2)
+                required_bits = 32 + byte_length * 8
+
+            if required_bits is not None and len(extracted_bits) >= required_bits:
                 break
 
-        if terminator_found:
+        if required_bits is not None and len(extracted_bits) >= required_bits:
             break
 
-    secret_message, terminated = bits_to_message(extracted_bits)
+    secret_message, completed = bits_to_message(extracted_bits)
 
-    if not terminated:
-        print("⚠️ 未在提取的比特流中找到终止符 '$$$'。")
+    if not completed:
+        print("⚠️ 提取的比特流长度不足以还原完整消息。")
 
     print(f"提取完成，消息长度: {len(secret_message)} 字符。")
     return secret_message
