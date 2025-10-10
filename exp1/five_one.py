@@ -67,9 +67,26 @@ def binarize_image(image_array, threshold=128):
 DEFAULT_BLOCK_SIZE = 8
 TARGET_HIGH = 0.52
 TARGET_LOW = 0.48
+DEFAULT_SEED = 12345
 
 
-def embed_binary_density(binary_img, message, block_size=DEFAULT_BLOCK_SIZE, max_change_ratio=0.05):
+def _get_shuffled_block_indices(block_rows, block_cols, seed=None):
+    indices = [(i, j) for i in range(block_rows) for j in range(block_cols)]
+    if seed is None:
+        return indices, np.random.RandomState()
+
+    rng = np.random.RandomState(seed)
+    rng.shuffle(indices)
+    return indices, rng
+
+
+def embed_binary_density(
+    binary_img,
+    message,
+    block_size=DEFAULT_BLOCK_SIZE,
+    max_change_ratio=0.05,
+    seed=DEFAULT_SEED,
+):
     """
     二值图像隐写嵌入功能：基于区域密度（黑像素比例）。
     
@@ -96,54 +113,82 @@ def embed_binary_density(binary_img, message, block_size=DEFAULT_BLOCK_SIZE, max
     bit_index = 0
     # 块内总像素数
     block_total_pixels = block_size * block_size
-    # 遍历图像的 8x8 块
-    for i in range(block_rows):
-        for j in range(block_cols):
-            if bit_index >= total_bits:
-                break
-                
-            r_start, r_end = i * block_size, (i + 1) * block_size
-            c_start, c_end = j * block_size, (j + 1) * block_size
-            
-            block = stego_binary_img[r_start:r_end, c_start:c_end]
-            
-            # 1. 计算当前黑像素（0）比例 P_black
-            # 记住：0 是黑色，255 是白色
-            P_black = np.sum(block == 0) / block_total_pixels
-            max_changes = max(1, int(np.ceil(block_total_pixels * max_change_ratio)))
+    block_indices, rng = _get_shuffled_block_indices(block_rows, block_cols, seed)
 
-            bit_to_embed = secret_bits[bit_index]
+    for i, j in block_indices:
+        if bit_index >= total_bits:
+            break
 
-            # 在嵌入阶段，去掉 success/max_changes 判断，直接执行像素翻转
-            if bit_to_embed == 1:
-                required_black = math.ceil(TARGET_HIGH * block_total_pixels)
-                current_black = int(np.sum(block == 0))
-                missing_black = max(0, required_black - current_black)
+        r_start, r_end = i * block_size, (i + 1) * block_size
+        c_start, c_end = j * block_size, (j + 1) * block_size
+
+        block = stego_binary_img[r_start:r_end, c_start:c_end]
+
+        max_changes = max(1, int(np.ceil(block_total_pixels * max_change_ratio)))
+        bit_to_embed = secret_bits[bit_index]
+        original_block = block.copy()
+        success = False
+
+        if bit_to_embed == 1:
+            required_black = math.ceil(TARGET_HIGH * block_total_pixels)
+            current_black = int(np.sum(block == 0))
+            missing_black = max(0, required_black - current_black)
+
+            if missing_black > 0:
                 white_indices = np.column_stack(np.where(block == 255))
-                if missing_black > len(white_indices):
-                    missing_black = len(white_indices)
+                if len(white_indices) > 0:
+                    limited_missing = min(missing_black, len(white_indices), max_changes)
+                    if limited_missing > 0:
+                        flip_indices = rng.choice(len(white_indices), limited_missing, replace=False)
+                        for idx in flip_indices:
+                            r, c = white_indices[idx]
+                            block[r, c] = 0
+                        missing_black -= limited_missing
+
                 if missing_black > 0:
-                    flip_indices = np.random.choice(len(white_indices), missing_black, replace=False)
+                    white_indices = np.column_stack(np.where(block == 255))
+                    if len(white_indices) > 0:
+                        additional = min(missing_black, len(white_indices))
+                        flip_indices = rng.choice(len(white_indices), additional, replace=False)
                     for idx in flip_indices:
                         r, c = white_indices[idx]
                         block[r, c] = 0
-            elif bit_to_embed == 0:
-                allowed_black = math.floor(TARGET_LOW * block_total_pixels)
-                current_black = int(np.sum(block == 0))
-                excess_black = max(0, current_black - allowed_black)
+
+            success = np.sum(block == 0) / block_total_pixels > TARGET_HIGH
+
+        else:
+            allowed_black = math.floor(TARGET_LOW * block_total_pixels)
+            current_black = int(np.sum(block == 0))
+            excess_black = max(0, current_black - allowed_black)
+
+            if excess_black > 0:
                 black_indices = np.column_stack(np.where(block == 0))
-                if excess_black > len(black_indices):
-                    excess_black = len(black_indices)
+                if len(black_indices) > 0:
+                    limited_excess = min(excess_black, len(black_indices), max_changes)
+                    if limited_excess > 0:
+                        flip_indices = rng.choice(len(black_indices), limited_excess, replace=False)
+                        for idx in flip_indices:
+                            r, c = black_indices[idx]
+                            block[r, c] = 255
+                        excess_black -= limited_excess
+
                 if excess_black > 0:
-                    flip_indices = np.random.choice(len(black_indices), excess_black, replace=False)
+                    black_indices = np.column_stack(np.where(block == 0))
+                    if len(black_indices) > 0:
+                        additional = min(excess_black, len(black_indices))
+                        flip_indices = rng.choice(len(black_indices), additional, replace=False)
                     for idx in flip_indices:
                         r, c = black_indices[idx]
                         block[r, c] = 255
+
+            success = np.sum(block == 0) / block_total_pixels < TARGET_LOW
+
+        if success:
             stego_binary_img[r_start:r_end, c_start:c_end] = block
             bit_index += 1
-        
-        if bit_index >= total_bits:
-            break
+        else:
+            stego_binary_img[r_start:r_end, c_start:c_end] = original_block
+
 
     if bit_index < total_bits:
         raise RuntimeError(
@@ -202,6 +247,7 @@ def extract_binary_density(
     stego_binary_img,
     block_size=DEFAULT_BLOCK_SIZE,
     threshold=0.5,
+    seed=DEFAULT_SEED,
 ):
     H, W = stego_binary_img.shape
     block_rows = H // block_size
@@ -211,24 +257,21 @@ def extract_binary_density(
 
     required_bits = None
 
-    for i in range(block_rows):
-        for j in range(block_cols):
-            r_start, r_end = i * block_size, (i + 1) * block_size
-            c_start, c_end = j * block_size, (j + 1) * block_size
-            block = stego_binary_img[r_start:r_end, c_start:c_end]
-            P_black = np.sum(block == 0) / block_total_pixels
+    block_indices, _ = _get_shuffled_block_indices(block_rows, block_cols, seed)
 
-            bit = 1 if P_black >= threshold else 0
-            extracted_bits.append(bit)
+    for i, j in block_indices:
+        r_start, r_end = i * block_size, (i + 1) * block_size
+        c_start, c_end = j * block_size, (j + 1) * block_size
+        block = stego_binary_img[r_start:r_end, c_start:c_end]
+        P_black = np.sum(block == 0) / block_total_pixels
 
-            # 读取长度头后确定需要的总比特数
-            if required_bits is None and len(extracted_bits) >= 32:
-                length_bits = extracted_bits[:32]
-                byte_length = int("".join(map(str, length_bits)), 2)
-                required_bits = 32 + byte_length * 8
+        bit = 1 if P_black >= threshold else 0
+        extracted_bits.append(bit)
 
-            if required_bits is not None and len(extracted_bits) >= required_bits:
-                break
+        if required_bits is None and len(extracted_bits) >= 32:
+            length_bits = extracted_bits[:32]
+            byte_length = int("".join(map(str, length_bits)), 2)
+            required_bits = 32 + byte_length * 8
 
         if required_bits is not None and len(extracted_bits) >= required_bits:
             break
