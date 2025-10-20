@@ -237,7 +237,50 @@ def plot_histograms(original_image, stego_image, channel=0):
     plt.show()
     print("已生成直方图。")
     
+
+def visualize_random_positions_on_image(carrier_image, random_indices, marker_size=3):
+    """
+    在原始载体图像上标出随机选取的像素点位置,使用醒目的红色标记
     
+    参数:
+    - carrier_image: 原始载体图像数组
+    - random_indices: 随机选取的一维索引列表
+    - marker_size: 标记点的大小(像素),默认为3表示3x3的红色方块
+    
+    返回:
+    - visualization_image: 标记了随机点的可视化图像
+    """
+    # 复制原图，避免修改原始数据
+    vis_image = carrier_image.copy()
+    
+    # 将一维索引转换为三维坐标
+    H, W, C = carrier_image.shape
+    flat_shape = (H * W * C,)
+    
+    # 将随机索引转换为 (行, 列, 通道) 坐标
+    random_indices_3d = np.unravel_index(random_indices, (H, W, C))
+    
+    # 计算标记点的半径
+    radius = marker_size // 2
+    
+    # 在对应位置标记为醒目的红色方块
+    for i in range(len(random_indices)):
+        row = random_indices_3d[0][i]
+        col = random_indices_3d[1][i]
+        
+        # 绘制 marker_size x marker_size 的红色方块
+        for dr in range(-radius, radius + 1):
+            for dc in range(-radius, radius + 1):
+                new_row = row + dr
+                new_col = col + dc
+                # 确保坐标在图像范围内
+                if 0 <= new_row < H and 0 <= new_col < W:
+                    # 将该像素点标记为亮红色 (255, 0, 0)
+                    vis_image[new_row, new_col] = [255, 0, 0]
+    
+    return vis_image
+
+
 # --- 主程序部分 ---
 carrier_image_path = 'dy_picture.jpg'
 carrier_image = load_image(carrier_image_path)
@@ -248,6 +291,22 @@ if carrier_image is not None:
     try:
         # 执行嵌入
         stego_image, random_map = embed_random_lsb(carrier_image, secret_message, secret_key_seed)
+        
+        # 生成随机索引用于可视化
+        secret_bits = message_to_bits(secret_message)
+        total_bits = len(secret_bits)
+        flat_image = carrier_image.flatten()
+        max_capacity = len(flat_image)
+        
+        random.seed(secret_key_seed)
+        all_indices = list(range(max_capacity))
+        random_indices = random.sample(all_indices, total_bits)
+        
+        # 在原图上可视化随机点 (使用5x5的红色方块,更醒目)
+        vis_image = visualize_random_positions_on_image(carrier_image, random_indices, marker_size=5)
+        vis_img_pil = Image.fromarray(vis_image)
+        vis_img_pil.save("random_points_on_original.png")
+        print("随机点在原图上的可视化已保存为 random_points_on_original.png (使用5x5红色方块标记)")
         
         # 保存隐写图像
         stego_img_pil = Image.fromarray(stego_image)
@@ -279,3 +338,4 @@ if carrier_image is not None:
 
     except ValueError as e:
         print(e)
+
