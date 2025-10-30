@@ -25,8 +25,6 @@ if carrier_image is not None:
 
 # 提取秘密信息 。
 
-# 画出随机位置（可选，但有助于理解） 。
-
 # 对比隐写前后图像直方图，分析LSB隐写导致的值对效应 。
 
 def message_to_bits(message):
