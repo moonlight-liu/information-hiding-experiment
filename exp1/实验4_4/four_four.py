@@ -62,6 +62,21 @@ def bits_to_message(bits):
     secret_message = "".join(message_bytes)
     return secret_message
 
+def psnr_uint8(orig_uint8, recon_uint8):
+    """计算两张 uint8 灰度图的 PSNR（dB）"""
+    orig = np.asarray(orig_uint8, dtype=np.float32)
+    recon = np.asarray(recon_uint8, dtype=np.float32)
+    if orig.shape != recon.shape:
+        h = min(orig.shape[0], recon.shape[0])
+        w = min(orig.shape[1], recon.shape[1])
+        orig = orig[:h, :w]
+        recon = recon[:h, :w]
+    mse = np.mean((orig - recon) ** 2)
+    if mse == 0:
+        return float('inf')
+    PIXEL_MAX = 255.0
+    return 10.0 * np.log10((PIXEL_MAX ** 2) / mse)
+
 # ====================================================================
 # B. 嵌入与提取功能
 # ====================================================================
@@ -115,7 +130,7 @@ def extract_dct_two_point(stego_image, C1_pos=(3,4), C2_pos=(4,3), block_size=8)
     return bits_to_message(bits)
 
 # ====================================================================
-# C. 主程序测试
+# C. 主程序测试（已加入 PSNR 输出）
 # ====================================================================
 
 carrier_image_path = 'dy_picture.jpg'
@@ -125,17 +140,38 @@ carrier_image_gray = load_image_gray(carrier_image_path)
 
 if carrier_image_gray is not None:
     try:
+        orig_uint8 = np.clip(carrier_image_gray, 0, 255).astype(np.uint8)
         for delta in [5, 10, 20, 30, 40, 50]:
+            # 1) 嵌入（得到 float32 stego，未压缩）
             stego_image_dct = embed_dct_two_point(carrier_image_gray, secret_message_dct, delta=delta)
+
+            # 2) 计算保存前 PSNR（反映嵌入引入的失真）
+            stego_pre_uint8 = np.clip(stego_image_dct, 0, 255).astype(np.uint8)
+            psnr_pre = psnr_uint8(orig_uint8, stego_pre_uint8)
+
+            # 3) 保存为 JPEG（评估经过有损压缩后的效果），并重新加载
             stego_save_path = f"stego_dct_two_point_{delta}.jpg"
-            save_image(stego_image_dct, stego_save_path, quality=75)  # 75为较强压缩
+            save_image(stego_image_dct, stego_save_path, quality=75)  # 若想无损改为 PNG
+
             loaded_stego = load_image_gray(stego_save_path)
-            if loaded_stego is not None:
-                extracted_message_dct = extract_dct_two_point(loaded_stego)
-                print(f"\ndelta={delta} 提取消息: '{extracted_message_dct}'")
-                if extracted_message_dct == secret_message_dct:
-                    print("✅ 提取一致")
-                else:
-                    print("❌ 提取不一致")
+            if loaded_stego is None:
+                print(f"\ndelta={delta} 保存或加载失败，跳过")
+                continue
+            loaded_uint8 = np.clip(loaded_stego, 0, 255).astype(np.uint8)
+
+            # 4) 计算保存后 PSNR（反映嵌入+压缩后的总失真）
+            psnr_post = psnr_uint8(orig_uint8, loaded_uint8)
+
+            # 5) 提取并判断是否一致
+            extracted_message_dct = extract_dct_two_point(loaded_stego)
+            success = (extracted_message_dct == secret_message_dct)
+            status_text = "✅ 提取一致" if success else "❌ 提取不一致"
+
+            # 6) 输出
+            pre_text = "inf" if psnr_pre == float('inf') else f"{psnr_pre:.2f} dB"
+            post_text = "inf" if psnr_post == float('inf') else f"{psnr_post:.2f} dB"
+            print(f"\ndelta={delta}  PSNR_before_save={pre_text}   PSNR_after_save={post_text}   {status_text}")
+            # 可选：显示或保存差异图以便可视化（见建议）
+
     except ValueError as e:
         print(e)
