@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 
 from utils import *
 
+# 基于给定的随机种子，在扁平像素数组中随机选择不重复的位置，将这些位置的LSB替换为消息位（msg_bits）
+# 返回嵌入消息后的图像数组
 def lsbr_embed(
     msg_bits: str, 
     cover: np.ndarray,
@@ -25,6 +27,7 @@ def lsbr_embed(
     
     return stego
 
+# 使用重复的随机种子复现嵌入时的位置，读取这些位置的LSB，组合成提取的消息位字符串
 def lsbr_extract(
     bit_length: int,
     stego: np.ndarray,
@@ -40,6 +43,7 @@ def lsbr_extract(
         msg_bits.append(str(bit))
     return ''.join(msg_bits)
 
+# 在原始灰度图上把嵌入位置绘成红点并保存，方便检查被修改的位置，仅支持灰度图
 def visualize_msg_positions(
     img: np.ndarray,
     bit_length: int,
@@ -59,6 +63,7 @@ def visualize_msg_positions(
     cv2.imwrite(save_path, vis_img)
     print(f'The visualization image has been saved to "{save_path}"')
     
+# 计算cover和stego，绘制并保存嵌入前后的灰度直方图对比
 def visualize_gray_histogram(
     cover: np.ndarray,
     stego: np.ndarray,
@@ -95,7 +100,7 @@ def visualize_gray_histogram(
     plt.close()
     print(f'Histograms have been saved to "{save_path}"')
 
-
+# 计算并绘制|Hist[2i] - Hist[2i+1]|的对比图，用于观察LSB改变对奇偶数统计的影响
 def visualize_histgram_difference(
     cover: np.ndarray,
     stego: np.ndarray,
