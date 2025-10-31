@@ -63,7 +63,7 @@ def reconstruct_blocks(image: np.ndarray, coeff_list: List[np.ndarray]):
     recon_image = np.zeros((H, W), dtype=np.float32)
     for i in range(0, H, 8):
         for j in range(0, W, 8):
-            if idx > len(ac_list):
+            if idx >= len(coeff_list):
                 break
             coeff = coeff_list[idx]
             quant_block = inverse_zigzag(coeff)
@@ -113,11 +113,13 @@ for blk_ac in ac_list:
 
         bit = int(embed_bits[bit_idx])
 
-        # F4嵌入逻辑：
-        # 正奇/负偶 -> 1，正偶/负奇 -> 0
-        if (ac > 0 and ac % 2 != bit) or (ac < 0 and (-ac) % 2 == bit):
-            # 修改一个单位
-            new_blk_ac[i] += -1 if ac > 0 else 1
+        # F4嵌入逻辑（统一到 |ac| 的奇偶 = bit，且避免把非零改成 0）
+        if abs(ac) % 2 != bit:
+            proposed = ac - 1 if ac > 0 else ac + 1
+            # 若会产生 0，则改为远离 0（±2），避免提取阶段被跳过
+            if proposed == 0:
+                proposed = 2 if ac > 0 else -2
+            new_blk_ac[i] = proposed
 
         bit_idx += 1
 
@@ -132,42 +134,36 @@ cv2.imwrite('res/lena_gray_f4_stego.png', stego)
 
 stego = load_gray_image('res/lena_gray_f4_stego.png')
 
-def f4_extract(bit_length: int, stego: np.ndarray) -> str:
-    H, W = stego.shape
+def f4_extract_from_coeffs(bit_length: int, new_ac_list: List[np.ndarray]) -> str:
+    """
+    直接从嵌入后的量化 DCT 系数列表中提取秘密信息。
+    """
     bits = []
-
-    for i in range(0, H, 8):
-        for j in range(0, W, 8):
-            if len(bits) >= bit_length:
-                break
-
-            block = stego[i:i+8, j:j+8].astype(np.float32)
-            dct_block = cv2.dct(block)
-            quant_block = np.round(dct_block / Q)
-            zz = zigzag_scan(quant_block)
-
-            # 跳过DC
-            for ac in zz[1:]:
-                if ac == 0:
-                    continue
-
-                # F4逻辑：正奇/负偶 → 1，正偶/负奇 → 0
-                if (ac > 0 and ac % 2 == 1) or (ac < 0 and (-ac) % 2 == 0):
-                    bits.append('1')
-                else:
-                    bits.append('0')
-
-                if len(bits) >= bit_length:
-                    break
-
+    
+    for blk_ac in new_ac_list:
         if len(bits) >= bit_length:
             break
+        
+        for ac in blk_ac:
+            if ac == 0:
+                continue
 
-    print(f"Extracted {len(bits)}/{bit_length} bits.")
+            # F4逻辑：正奇/负偶 → 1，正偶/负奇 → 0
+            if (ac > 0 and ac % 2 == 1) or (ac < 0 and (-ac) % 2 == 0):
+                bits.append('1')
+            else:
+                bits.append('0')
+
+            if len(bits) >= bit_length:
+                break
+                
+    # print(f"Extracted {len(bits)}/{bit_length} bits.")
     return ''.join(bits[:bit_length])
 
-extract_bits = f4_extract(bit_length, stego)
 
-accuracy = np.mean([b1==b2 for b1, b2 in zip(embed_bits, extract_bits)])
+extract_bits = f4_extract_from_coeffs(bit_length, new_ac_list)
+
+accuracy = calculate_accuracy(embed_bits, extract_bits)
+print(f"Extracted {len(extract_bits)}/{bit_length} bits.")
 print(f"Extraction accuracy: {accuracy:.4f}")
         
