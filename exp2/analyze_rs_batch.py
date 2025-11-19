@@ -114,20 +114,19 @@ def main():
 
     lsbr_est = analyze_folder(base/'LSBR', 'lsbr_stego', ratios, group_size, mask)
     lsbr_est = sanitize_estimates(lsbr_est)
-    plot_ratio_vs_est(ratios, lsbr_est, str(base/'res'/'rs_est_vs_ratio_lsbr.png'),
+    plot_ratio_vs_est(ratios, lsbr_est, str(base/'res'/'LSBR_VS_LSBM'/'rs_est_vs_ratio_lsbr.png'),
                       'RS Estimated p vs Ratio (LSBR)')
-    plot_abs_error(ratios, lsbr_est, str(base/'res'/'rs_abs_err_lsbr.png'),
+    plot_abs_error(ratios, lsbr_est, str(base/'res'/'LSBR_VS_LSBM'/'rs_abs_err_lsbr.png'),
                    'RS Absolute Error vs Ratio (LSBR)')
 
     lsbm_est = analyze_folder(base/'LSBM', 'lsbm_stego', ratios, group_size, mask)
     lsbm_est = sanitize_estimates(lsbm_est)
-    plot_ratio_vs_est(ratios, lsbm_est, str(base/'res'/'rs_est_vs_ratio_lsbm.png'),
+    plot_ratio_vs_est(ratios, lsbm_est, str(base/'res'/'LSBR_VS_LSBM'/'rs_est_vs_ratio_lsbm.png'),
                       'RS Estimated p vs Ratio (LSBM)')
-    plot_abs_error(ratios, lsbm_est, str(base/'res'/'rs_abs_err_lsbm.png'),
+    plot_abs_error(ratios, lsbm_est, str(base/'res'/'LSBR_VS_LSBM'/'rs_abs_err_lsbm.png'),
                    'RS Absolute Error vs Ratio (LSBM)')
 
     # 合并对比图
-    plot_both_methods(ratios, lsbr_est, lsbm_est, str(base/'res'/'rs_est_vs_ratio_both.png'))
-
+    plot_both_methods(ratios, lsbr_est, lsbm_est, str(base/'res'/'LSBR_VS_LSBM'/'rs_est_vs_ratio_both.png'))
 if __name__ == '__main__':
     main()

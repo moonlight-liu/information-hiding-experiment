@@ -34,12 +34,12 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='LSBM Steganography Embed & Extract Demo')
     parser.add_argument('--cover_path', type=str, default='pics/lena_gray.png')
-    parser.add_argument('--stego_path', type=str, default='LSBM/lsbm_stego.png')
+    parser.add_argument('--stego_path', type=str, default='res/LSBM/lsbm_stego.png')
     parser.add_argument('--seed', type=int, default=2025)
     parser.add_argument('--ratio', type=float, default=1.0)
-    parser.add_argument('--vis_pos_path', type=str, default='LSBM/lsbm_msg_pos.png')
-    parser.add_argument('--vis_hist_path', type=str, default='LSBM/lsbm_msg_hist.png')
-    parser.add_argument('--vis_diff_path', type=str, default='LSBM/lsbm_msg_hist_diff.png')
+    parser.add_argument('--vis_pos_path', type=str, default='res/LSBM/lsbm_msg_pos.png')
+    parser.add_argument('--vis_hist_path', type=str, default='res/LSBM/lsbm_msg_hist.png')
+    parser.add_argument('--vis_diff_path', type=str, default='res/LSBM/lsbm_msg_hist_diff.png')
     args = parser.parse_args()
     main(args)
 
