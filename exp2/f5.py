@@ -5,6 +5,8 @@ from typing import List, Tuple
 from utils import load_gray_image, generate_random_bits, calculate_accuracy
 from f4Pro import get_ac_dc_coeffs, combine_dc_ac, reconstruct_blocks
 
+BASE_OUT_DIR = 'res/f5'
+
 def hamming_parity_matrix(r: int) -> np.ndarray:
     """
     生成 (2^r-1, r) 汉明码的校验矩阵 H。
@@ -147,7 +149,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='F5 Steganography Embed & Extract Demo')
     parser.add_argument('--cover_path', type=str, default='pics/lena_gray.png')
-    parser.add_argument('--stego_path', type=str, default='res/lena_gray_f5_stego.png')
+    parser.add_argument('--stego_path', type=str, default=os.path.join(BASE_OUT_DIR, 'lena_gray_f5_stego.png'))
     parser.add_argument('--r', type=int, default=3)
     parser.add_argument('--seed', type=int, default=2025)
     parser.add_argument('--ratio', type=float, default=0.5)

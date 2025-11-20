@@ -5,6 +5,8 @@ import os
 from utils import load_gray_image
 from rs_analyze import rs_statistics
 
+BASE_OUT_DIR = 'res/f5'
+
 def visualize_histogram(cover: np.ndarray, stego: np.ndarray, save_path: str):
     """
     绘制并保存cover与stego的灰度直方图对比。
@@ -63,9 +65,9 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description='F5 Steganography Security Analysis')
     parser.add_argument('--cover_path', type=str, default='pics/lena_gray.png')
-    parser.add_argument('--stego_path', type=str, default='res/lena_gray_f5_stego.png')
-    parser.add_argument('--hist_path', type=str, default='res/lena_gray_f5_hist.png')
-    parser.add_argument('--diff_path', type=str, default='res/lena_gray_f5_hist_diff.png')
+    parser.add_argument('--stego_path', type=str, default=os.path.join(BASE_OUT_DIR, 'lena_gray_f5_stego.png'))
+    parser.add_argument('--hist_path', type=str, default=os.path.join(BASE_OUT_DIR, 'lena_gray_f5_hist.png'))
+    parser.add_argument('--diff_path', type=str, default=os.path.join(BASE_OUT_DIR, 'lena_gray_f5_hist_diff.png'))
     parser.add_argument('--group_size', type=int, default=4)
     args = parser.parse_args()
     cover = load_gray_image(args.cover_path)
