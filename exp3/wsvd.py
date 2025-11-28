@@ -269,13 +269,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="mode", required=True)
 
     p_embed = subparsers.add_parser("embed")
-    p_embed.add_argument("--cover", required=True)
-    p_embed.add_argument("--out", required=True)
-    p_embed.add_argument("--alpha", type=float, default=0.5)
-    p_embed.add_argument("--seed", type=int, default=1234)
-    p_embed.add_argument("--wavelet", type=str, default="db1")
-    p_embed.add_argument("--level", type=int, default=1)
-    p_embed.add_argument("--ratio", type=float, default=0.8)
+    p_embed.add_argument("--cover", default="input/girl.jpg", help="输入图像路径")
+    p_embed.add_argument("--out", default="output/girl_watermarked.jpg", help="输出水印图像路径")
+    p_embed.add_argument("--alpha", type=float, default=0.5, help="嵌入强度 (0.1-1.0)")
+    p_embed.add_argument("--seed", type=int, default=1234, help="随机种子")
+    p_embed.add_argument("--wavelet", type=str, default="db1", help="小波类型")
+    p_embed.add_argument("--level", type=int, default=1, help="小波分解层数")
+    p_embed.add_argument("--ratio", type=float, default=0.8, help="替换比例 (0.1-1.0)")
 
     return parser
 
