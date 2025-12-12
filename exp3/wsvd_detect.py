@@ -265,13 +265,13 @@ def scan_seeds(
     ax1.plot(seeds, abs_spatial, marker="o")
     ax1.set_ylabel("相关性 d")
     ax1.set_title("小波系数相关性分析（空域）")
-    ax1.grid(True, alpha=0.3)
+    ax1.grid(True, alpha=0.5)
 
     ax2.plot(seeds, abs_dct, marker="o")
     ax2.set_xlabel("种子")
     ax2.set_ylabel("相关性 d^")
     ax2.set_title("DCT 变换后小波系数相关性分析")
-    ax2.grid(True, alpha=0.3)
+    ax2.grid(True, alpha=0.5)
 
     fig.suptitle("“种子-相关性值”SC 图（空域与 DCT 域）")
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])

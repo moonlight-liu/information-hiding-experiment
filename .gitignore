@@ -1,0 +1,53 @@
+# Python 缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 虚拟环境
+hiding/
+venv/
+ENV/
+env/
+.venv
+
+# IDE 配置文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 实验输出文件
+exp1/实验3_3/__pycache__/
+exp1/实验4_3/hf_results/
+exp1/实验4_4/__pycache__/
+exp1/实验5_1/__pycache__/
+
+
+
+# 临时文件
+*.tmp
+*.bak
+*.log
+
+# 大文件和二进制文件
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.rar
+
+# 系统文件
+Thumbs.db
+desktop.ini
+
