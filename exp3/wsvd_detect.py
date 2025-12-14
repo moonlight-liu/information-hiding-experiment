@@ -293,8 +293,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     # === 单次检测模式 ===
     p_detect = subparsers.add_parser("detect", help="检测指定种子的水印")
-    p_detect.add_argument("--cover", default="input/girl.jpg", help="原始封面图像路径")
-    p_detect.add_argument("--test", default="output/girl_watermarked.jpg", help="待检测图像路径")
+    p_detect.add_argument("--cover", default=r"G:\information_hiding\exp3\input\girl.jpg", help="原始封面图像路径")
+    p_detect.add_argument("--test", default=r"G:\information_hiding\exp3\output\girl_watermarked.jpg", help="待检测图像路径")
     p_detect.add_argument("--alpha", type=float, default=0.5, help="嵌入强度（需与嵌入时一致）")
     p_detect.add_argument("--seed", type=int, default=1234, help="随机种子（需与嵌入时一致）")
     p_detect.add_argument("--wavelet", type=str, default="db1", help="小波类型")
@@ -303,15 +303,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     # === 种子扫描模式 ===
     p_scan = subparsers.add_parser("scan", help="扫描多个种子生成SC图")
-    p_scan.add_argument("--cover", default="input/girl.jpg", help="原始封面图像路径")
-    p_scan.add_argument("--test", default="output/girl_watermarked.jpg", help="待检测图像路径")
+    p_scan.add_argument("--cover", default=r"G:\information_hiding\exp3\input\girl.jpg", help="原始封面图像路径")
+    p_scan.add_argument("--test", default=r"G:\information_hiding\exp3\output\girl_watermarked.jpg", help="待检测图像路径")
     p_scan.add_argument("--alpha", type=float, default=0.5, help="嵌入强度")
     p_scan.add_argument("--wavelet", type=str, default="db1", help="小波类型")
     p_scan.add_argument("--level", type=int, default=1, help="小波分解层数")
     p_scan.add_argument("--ratio", type=float, default=0.8, help="替换比例")
     p_scan.add_argument("--seed-start", type=int, default=1230, help="起始种子值")
     p_scan.add_argument("--seed-end", type=int, default=1240, help="结束种子值")
-    p_scan.add_argument("--out-plot", type=str, default="output/sc_plot.png", help="SC图保存路径")
+    p_scan.add_argument("--out-plot", type=str, default=r"G:\information_hiding\exp3\output\sc_plot.png", help="SC图保存路径")
 
     return parser
 
