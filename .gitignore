@@ -51,3 +51,54 @@ exp1/实验5_1/__pycache__/
 Thumbs.db
 desktop.ini
 
+# 深度学习模型文件（大文件，不应提交到git）
+*.ckpt
+*.pth
+*.pt
+*.pb
+*.h5
+*.bin
+*.safetensors
+*.onnx
+models/
+checkpoints/
+
+# 数据集和图像文件（临时生成的图片）
+# 注：需要保留的图片请不要放在这些目录
+exp2/LSBM/*.jpg
+exp2/LSBM/*.png
+exp2/LSBR/*.jpg
+exp2/LSBR/*.png
+exp3/output/*.jpg
+exp3/output/*.png
+mas_GRDH/scripts/outputs/*.jpg
+mas_GRDH/scripts/outputs/*.png
+mas_GRDH/scripts/tmp_*.png
+mas_GRDH/scripts/tmp_*.jpg
+
+# 实验结果数据目录
+exp2/res/
+exp2/LSBM/
+exp2/LSBR/
+exp3/output/
+exp3/input/
+mas_GRDH/scripts/outputs/
+
+# PDF文档（可选，根据需要决定是否忽略）
+*.pdf
+
+# Conda环境
+*.conda
+conda-meta/
+
+# 数据分析结果
+*.csv
+metrics.json
+
+# StirMark测试工具的输出
+StirMarkBenchmark_4_0_129/Media/Output/
+
+# 临时文件和测试输出
+tempCodeRunnerFile.py
+tmp_*
+test_output/
